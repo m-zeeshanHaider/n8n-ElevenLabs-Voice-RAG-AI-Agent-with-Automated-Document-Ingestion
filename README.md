@@ -10,6 +10,8 @@ The workflow exposes a webhook endpoint that accepts POST requests. Each request
 
 ![n8n canvas showing a Google Drive Trigger, a Download file node, and a Supabase Vector Store node connected to a Google Gemini embeddings node and a Default Data Loader](images/ElevenLabs-Voice-RAG-AI-Agent-with-Automated-Document-Ingestion-1.PNG)
 
+![n8n canvas showing a Webhook node feeding an AI Agent node, followed by an Edit Fields node and a Respond to Webhook node, with a Gemini chat model, Postgres chat memory, and a Supabase vector database tool with Gemini embeddings attached to the agent](images/ElevenLabs-Voice-RAG-AI-Agent-with-Automated-Document-Ingestion-2.PNG)
+
 ## Workflows
 
 | Workflow | Trigger | Purpose |
@@ -47,8 +49,6 @@ Rules enforced by the system prompt:
 The workflow has no branches, loops, or sub-workflow calls. Its settings reference an error workflow that is not part of this repository.
 
 Integrations used: Google Gemini, Supabase, Postgres, Cohere.
-
-![n8n canvas showing a Webhook node feeding an AI Agent node, followed by an Edit Fields node and a Respond to Webhook node, with a Gemini chat model, Postgres chat memory, and a Supabase vector database tool with Gemini embeddings attached to the agent](images/ElevenLabs-Voice-RAG-AI-Agent-with-Automated-Document-Ingestion-2.PNG)
 
 ## Integrations
 
