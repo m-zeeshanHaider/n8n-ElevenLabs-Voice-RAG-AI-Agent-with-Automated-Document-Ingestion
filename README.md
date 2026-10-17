@@ -1,80 +1,77 @@
 # ElevenLabs Supabase Voice RAG Agent
 
-An n8n workflow that answers questions over a webhook. It retrieves documents from a Supabase vector database and replies with a one-sentence, cited answer.
+An n8n workflow that answers questions for an ElevenLabs voice agent from a Supabase vector knowledge base. It returns a one-sentence answer with a source citation for each query.
 
-![Illustration with the n8n and ElevenLabs logos, a robot with a headset saying Hello, a document icon with a magnifying glass, and a microphone](images/thumbnail.png)
+![Illustration with the n8n and ElevenLabs logos, a cartoon robot wearing a headset and saying Hello, a document with a chart, and a microphone](images/thumbnail.png)
 
 ## Overview
 
-The project contains one workflow. An application sends a question to a webhook. An AI agent searches a Supabase vector store, reranks the matches, and writes an answer grounded in the retrieved documents. A Postgres table stores the conversation so follow-up questions keep their context. The workflow returns the cleaned answer to the caller.
+Voice agents need short answers that are grounded in company documents. This system receives a query over a **webhook**, retrieves matching document chunks from a Supabase vector store, and passes them to an AI agent built on Google Gemini. The workflow is named for ElevenLabs, and its one-sentence answer format and plain-text output suit speech playback.
 
-![Workflow canvas showing a Webhook node feeding an AI Agent node, which connects to an Edit Fields node and then a Respond to Webhook node. The agent has a Gemini chat model, Postgres chat memory, and a Supabase vector database tool with Gemini embeddings attached.](images/ElevenLabs-Voice-RAG-AI-Agent-with-Automated-Document-Ingestion-1.PNG)
+The agent keeps conversation history in Postgres, so follow-up questions resolve against earlier exchanges. A Cohere reranker reorders the retrieved chunks before the agent answers.
+
+![n8n canvas showing a Webhook node connected to an AI Agent node, followed by an Edit Fields node and a Respond to Webhook node, with a Gemini chat model, Postgres chat memory, and a Supabase vector store tool using Gemini embeddings attached to the agent](images/ElevenLabs-Voice-RAG-AI-Agent-with-Automated-Document-Ingestion-1.PNG)
 
 ## Workflows
 
 | Workflow | Trigger | Purpose |
 | --- | --- | --- |
-| ElevenLabs Supabase Voice RAG Agent | Webhook (POST) | Answers a question in one cited sentence using documents retrieved from Supabase. |
+| ElevenLabs Supabase Voice RAG Agent | Webhook (POST) | Answers a query in one sentence using documents retrieved from Supabase, with the source cited. |
 
 ## Workflow Details
 
 ### ElevenLabs Supabase Voice RAG Agent
 
-This workflow turns an incoming question into a single-sentence, source-cited answer drawn from a vector knowledge base.
+This workflow answers each incoming query with a single cited sentence drawn only from the Supabase knowledge base.
 
-**Trigger:** A **Webhook** node accepts POST requests and holds the response open until a Respond to Webhook node replies.
-
-Execution steps:
+**Trigger:** A Webhook node accepts POST requests and holds the response open until a Respond to Webhook node replies.
 
 1. The Webhook node receives the POST request and passes it to the AI Agent node.
-2. The AI Agent node loads the last 10 messages from Postgres Chat Memory for the current session.
-3. The agent calls the Supabase Vector Database tool, which embeds the question with Gemini Embeddings.
-4. The tool retrieves the 10 closest document chunks from Supabase.
-5. The Cohere reranker reorders those chunks by relevance.
-6. The Gemini 2.5 Flash model writes the answer from the reranked chunks.
-7. The Set node removes double quotation marks from the answer.
-8. The Respond to Webhook node returns the cleaned answer to the caller.
+2. The AI Agent node loads recent conversation history from the Postgres Chat Memory node, which keeps the last 10 messages for the session.
+3. The agent calls the Supabase Vector Database node as a tool. The node embeds the query with Gemini embeddings and retrieves the 10 closest document chunks.
+4. The Cohere reranker reorders the retrieved chunks by relevance.
+5. A Gemini chat model writes the answer under a system prompt that requires exactly one sentence followed by a source citation line.
+6. The "Remove quotation marks" Set node strips double quotation marks from the agent output.
+7. The Respond to Webhook node returns the cleaned result to the caller.
 
-Agent behavior defined in the system prompt:
+**Agent behavior:**
 
-- The answer is exactly one sentence, followed by a source citation on a separate line.
-- The agent uses only information retrieved from the vector database.
-- When retrieval returns nothing, the agent replies that no relevant information was found in the knowledge base.
-- The agent uses chat memory to resolve references to earlier questions.
+- The system prompt limits answers to information retrieved from the vector store.
+- The agent replies with a fixed "no relevant information" message when retrieval returns nothing.
+- The agent refuses requests to drop the single-sentence format.
 
-Model fallback:
+**Model fallback:** The AI Agent node has fallback enabled. Gemini 2.5 Flash is the primary chat model, and Gemini 2.5 Flash Lite is the fallback model.
 
-- Gemini 2.5 Flash is the primary chat model.
-- Gemini 2.5 Flash Lite is the fallback chat model.
+**Memory sessions:** The session key combines the workflow and execution identifiers, so each execution starts a new conversation.
 
-Error handling: the workflow settings specify an error workflow that runs when an execution fails.
+**Error handling:** The workflow settings point to a separate error workflow.
 
-Branches, loops, and sub-workflow calls: none.
+**Branches, loops, and sub-workflows:** None.
 
-Integrations: Google Gemini, Supabase, Postgres, Cohere.
+**Integrations:** Google Gemini, Supabase, Postgres, Cohere.
 
 ## Integrations
 
-- Google Gemini (chat models and embeddings)
-- Supabase (vector store)
-- Postgres (chat memory)
-- Cohere (reranker)
+- ElevenLabs: the voice agent platform named in the workflow title and sticky note. The workflow contains no ElevenLabs node.
+- Google Gemini: chat models and embeddings.
+- Supabase: vector database used for retrieval.
+- Postgres: chat memory storage.
+- Cohere: reranking of retrieved chunks.
 
 ## Prerequisites
 
-- An n8n instance with the LangChain (AI) nodes available.
-- A Google Gemini (PaLM) API credential.
+- An n8n instance with the LangChain AI nodes available.
+- A Google Gemini API credential.
 - A Supabase API credential and a Supabase project with a vector table and a matching search function.
-- A Postgres credential for a database that n8n can write to.
+- A Postgres credential and a Postgres database for chat memory.
 - A Cohere API credential.
-- An existing n8n workflow to serve as the error workflow, if you keep the error workflow setting.
 
 ## Setup
 
 1. Import `workflows/ElevenLabs_Supabase_Voice_RAG_Agent.json` into n8n.
 2. Create the Google Gemini, Supabase, Postgres, and Cohere credentials in n8n.
-3. Assign each credential to its nodes: both Gemini chat models and Embeddings Gemini, the Supabase Vector Database, Postgres Chat Memory, and Reranker Cohere.
-4. Review the Supabase table and search function settings on the Supabase Vector Database node.
-5. Select an error workflow in the workflow settings, or clear the setting.
-6. Activate the workflow.
-7. Send a POST request to the production webhook URL shown on the Webhook node.
+3. Assign each credential to its nodes: the two Gemini chat models, Gemini embeddings, Supabase Vector Database, Postgres Chat Memory, and Cohere reranker.
+4. Review the Supabase Vector Database node and confirm it points to your vector table and search function.
+5. Review the Postgres Chat Memory node and adjust the session key if you need sessions that span executions.
+6. Assign an error workflow in the workflow settings, or remove the existing reference.
+7. Activate the workflow and send POST requests to its production webhook URL.
