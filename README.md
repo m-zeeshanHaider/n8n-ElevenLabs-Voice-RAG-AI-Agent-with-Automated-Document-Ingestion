@@ -40,8 +40,6 @@ This workflow answers each incoming query with a single cited sentence drawn onl
 - The agent replies with a fixed "no relevant information" message when retrieval returns nothing.
 - The agent refuses requests to drop the single-sentence format.
 
-**Model fallback:** The AI Agent node has fallback enabled. Gemini 2.5 Flash is the primary chat model, and Gemini 2.5 Flash Lite is the fallback model.
-
 **Memory sessions:** The session key combines the workflow and execution identifiers, so each execution starts a new conversation.
 
 **Error handling:** The workflow settings point to a separate error workflow.
